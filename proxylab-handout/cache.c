@@ -26,5 +26,6 @@ typedef struct cache_LL {
 }cache_LL;
 
 void addToCache(cache_LL cache, web_object obj);
-
+void evictAnObject(cache_LL cache);
+void checkCache(cache_LL cache, char* data);
 
