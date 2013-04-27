@@ -10,4 +10,21 @@
 #include <getopt.h>
 #include <stdlib.h>
 
+/* The cache will be represented as a linked list of web objects
+   The eviction policy will be LRU and each object will hold a
+   timestamp indicating when it was last used */
+
+typedef struct web_object {
+  char *data;
+  unsigned int timestamp;
+  struct web_object* next;
+}web_object;
+
+typedef struct cache_LL {
+  web_object* head;
+  unsigned int cache_size;
+}cache_LL;
+
+void addToCache(cache_LL cache, web_object obj);
+
 
