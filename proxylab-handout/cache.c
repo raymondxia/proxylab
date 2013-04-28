@@ -17,15 +17,46 @@
 typedef struct web_object {
   char *data;
   unsigned int timestamp;
+  unsigned int size;
   struct web_object* next;
 }web_object;
 
 typedef struct cache_LL {
   web_object* head;
-  unsigned int cache_size;
+  unsigned int size;
 }cache_LL;
 
 void addToCache(cache_LL cache, web_object obj);
 void evictAnObject(cache_LL cache);
 void checkCache(cache_LL cache, char* data);
+
+void evictAnObject (cache_LL cache)
+{
+	unsigned int leastRecentTime = cache->head->timestamp;
+	web_object cursor = cache->head;
+	//The following while loop finds the exact timestamp of the least 
+	//recently used web object by iterating through the cache
+	while(cursor != NULL)
+	{
+		if(cursor->timestamp < leastRecentTime)
+			leastRecentTime = cursor->timestamp;
+		cursor = cursor->next;
+	}
+	//reset the cursor
+	cursor = cache->head;
+
+	while(cursor != NULL)
+	{
+		if(cursor->timestamp == leastRecentTime)
+		{
+			if(cursor->next->next != NULL) {
+				cache->size -= cursor->size;
+				cursor->next = cursor->next->next;
+			}
+			else
+				cursor->next = NULL;
+		}
+		cursor = cursor->next; 
+	}
+}
 
