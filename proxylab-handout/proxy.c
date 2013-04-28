@@ -27,9 +27,9 @@ static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 void serve(int file_d);
 void read_headers(rio_t *rp);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void serve_static(int fd, char *filename, int filesize);
-void serve_dynamic(int fd, char *filename, char *cgiargs);
+void make_request(int fd, char *host, char *path, char *reply);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+void terminate(int param);
 
 
 /*
@@ -43,6 +43,8 @@ int main(int argc, char **argv)
 
     int listenfd, connfd, port, clientlen;
     struct sockaddr_in clientaddr;
+
+    signal(SIGPIPE, terminate);
 
 
     if (argc !=  2)
@@ -72,7 +74,7 @@ int main(int argc, char **argv)
  void serve(int file_d)
  {
     int is_static;
-    struct stat sbuf;
+    //    struct stat sbuf;
     char method[MAXLINE], url[MAXLINE], version[MAXLINE];
     char buf[MAXLINE], host[MAXLINE], path[MAXLINE], cgiargs[MAXLINE];
     rio_t rio;
@@ -98,38 +100,22 @@ int main(int argc, char **argv)
     is_static = parse_url(url, host, path, cgiargs);
     dbg_printf("POST-PARSE\n");
 
-    /* Parse out GET request
-    if (stat(path, &sbuf) < 0)
-    {
-        dbg_printf("This branch\n");
-        clienterror(file_d, path, "404", "Not found", "Couldn't access site");
-        return;
-	}*/
+
 
     /* Serve static content */
     if (is_static)
     {
         // check if file requested is legal
+        /*
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
         {
+            dbg_printf("Status read error!\n");
             clienterror(file_d, path, "403", "Forbidden", "Can't read the file");
             return;
-        }
+	    }*/
 
-        serve_static(file_d, path, sbuf.st_size);
-    }
-
-    /* Serve dynamic content */
-    else
-    {
-        // check if file requested is legal
-        if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
-        {
-            clienterror(file_d, path, "403", "Forbidden", "Can't read the file");
-            return;
-        }
-
-        serve_dynamic(file_d, path, cgiargs);
+        strcpy(buf, "");
+        make_request(file_d, host, path, buf);
     }
 
  }
@@ -143,8 +129,8 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     char buf[MAXLINE], body[MAXLINE];
 
     /* Build body */
-    sprintf(body, "<html><title>Web Proxy Error</title><");
-    sprintf(body, "%s<body bgcolor =""FF8680"">\r\n", body);
+    sprintf(body, "<html><title>Web Proxy Error</title>");
+    sprintf(body, "%s<body bgcolor =\"#FF8680\">\r\n", body);
     sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
     sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
     sprintf(body, "%s<hr><em>Alex & Saumya's Web Proxy</em>\r\n", body);
@@ -156,8 +142,17 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
     Rio_writen(fd, buf, strlen(buf));
-    Rio_writen(fd, body, strlen(buf));
+    Rio_writen(fd, body, strlen(body));
 }
+
+//review later
+void terminate (int param)
+{
+    printf ("SIGPIPE, quitting ...\n");
+    exit(1);
+}
+
+
 
 /*
  * Reads in an ignores headers of requests
@@ -187,20 +182,6 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     char temp[MAXLINE];
     strcpy(temp, url);
 
-    /*
-    if ((frst_ptr = strstr(url, "www.")) == NULL)
-    {
-        app_error("URL doesn't have a \'.\' in it?");
-        exit(1);
-    }
-
-    if ((last_ptr = strrchr(url, '.')) == frst_ptr)
-    {
-        app_error("Only one \'.\' in URL?");
-        exit(1);
-	}*/
-
-    // remove suffix from url
     sscanf(url, "http://%s", url);
 
     if ((path_ptr = strchr(url, '/')) == NULL)
@@ -228,37 +209,59 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
+void make_request(int fd, char *host, char *path, char *reply)
+{
+
+    int net_fd;
+    char buf[MAXBUF];
+    rio_t rio;
+
+    net_fd = Open_clientfd(host, 80);
+
+    sprintf(buf, "GET %s HTTP/1.0\r\n", path);
+
+    Rio_writen(net_fd, buf, strlen(buf));
+
+
+    strcpy(reply, "");
+    Rio_readinitb(&rio, net_fd);
+    dbg_printf("Just sent request:\n");
+    dbg_printf("    %s\n", buf);
+    dbg_printf("To host:\n");
+    dbg_printf("    %s\n", host);
+    dbg_printf("Reading from host ... \n");
+    Rio_readlineb(&rio, reply, MAXLINE);
+    dbg_printf("Writing to client ... \n");
+    Rio_writen(fd, reply, strlen(reply));
+}
+
+
 /*
  * Serves static html to client
- */
 void serve_static(int fd, char *filename, int filesize)
 {
     int srcfd;
     char *srcp, buf[MAXBUF];
 
     sprintf(buf, "Host: www.cmu.edu\r\n");
-    sprintf(buf, "User-Agent: %s\r\n", user_agent);
-    sprintf(buf, "Accept: %s\r\n", accept_);
-    sprintf(buf, "Accept-Encoding: %s\r\n", accept_encoding);
-    sprintf(buf, "Connection: close\r\n");
-    sprintf(buf, "Proxy-Connection: close\r\n");
+    sprintf(buf, "%sUser-Agent: %s\r\n", buf, user_agent);
+    sprintf(buf, "%sAccept: %s\r\n", buf, accept_);
+    sprintf(buf, "%sAccept-Encoding: %s\r\n", buf, accept_encoding);
+    sprintf(buf, "%sConnection: close\r\n", buf);
+    sprintf(buf, "%sProxy-Connection: close\r\n", buf);
     Rio_writen(fd, buf, strlen(buf));
+
+
+
 
     srcfd = Open(filename, O_RDONLY, 0);
     srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
     Close(srcfd);
     Rio_writen(fd, srcp, filesize);
     Munmap(srcp, filesize);
-}
 
+} */
 
-/*
- * Garbage?
- */
-void serve_dynamic(int fd, char *filename, char *cgiargs)
-{
-    return;
-}
 
 
 
