@@ -8,6 +8,7 @@
  */
 #include <stdio.h>
 #include "csapp.h"
+ #include <cache.h>
 
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
@@ -24,6 +25,8 @@ static const char *user_agent = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:
 static const char *accept_ = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
 static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 
+
+
 void serve(int file_d);
 void read_headers(rio_t *rp);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
@@ -31,7 +34,7 @@ void make_request(int fd, char *host, char *path, char *reply);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
-
+cache_LL cache = Calloc(1, sizeof(cache_LL));
 /*
  * Main function
  */
@@ -211,6 +214,9 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
 void make_request(int fd, char *host, char *path, char *reply)
 {
+    reply = checkCache(cache, char* path) != NULL
+    if(reply != NULL)
+        return;
 
     int net_fd;
     char buf[MAXBUF];
@@ -230,7 +236,9 @@ void make_request(int fd, char *host, char *path, char *reply)
     dbg_printf("To host:\n");
     dbg_printf("    %s\n", host);
     dbg_printf("Reading from host ... \n");
-    Rio_readlineb(&rio, reply, MAXLINE);
+    int sizeOfWebObject = Rio_readlineb(&rio, reply, MAXLINE);
+    if(sizeOfWebObject < MAX_OBJECT_SIZE)
+        addToCache(cache, reply, path, sizeOfWebObject);
     dbg_printf("Writing to client ... \n");
     Rio_writen(fd, reply, strlen(reply));
 }

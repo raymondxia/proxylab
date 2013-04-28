@@ -30,7 +30,6 @@ typedef struct cache_LL{
 
 /* Defining Global variables */
 unsigned int timecounter = 0;
-cache_LL cache;
 
 web_object* checkCache(cache_LL* cache, char* path);
 void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize);
