@@ -6,6 +6,7 @@
 #include "cache.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -14,32 +15,34 @@
    The eviction policy will be LRU and each object will hold a
    timestamp indicating when it was last used */
 
-typedef struct web_object {
+typedef struct web_object{
   char *data;
   unsigned int timestamp;
   unsigned int size;
   char* path;
   struct web_object* next;
-}web_object;
+} web_object;
 
-typedef struct cache_LL {
+typedef struct cache_LL{
   web_object* head;
   unsigned int size;
 }cache_LL;
 
 /* Defining Global variables */
-unsigned int timecounter;
+unsigned int timecounter = 0;
+cache_LL cache;
 
-web_object checkCache(cache_LL cache, char* path);
-void addToCache(cache_LL cache, web_object obj);
-void evictAnObject(cache_LL cache);
+web_object* checkCache(cache_LL* cache, char* path);
+void addToCache(cache_LL* cache, char* data, char* path);
+void evictAnObject(cache_LL* cache);
 
-web_object checkCache(cache_LL cache, char* path) {
-	web_object cursor = cache->head;
+web_object* checkCache(cache_LL* cache, char* path) {
+	web_object* cursor = cache->head;
+	timecounter++;
 	while(cursor != NULL)
 	{
 		if(strcmp(cursor->path, path)) {
-			cursor->timestamp++;
+			cursor->timestamp = timecounter;
 			return cursor;
 		}
 			
@@ -48,27 +51,33 @@ web_object checkCache(cache_LL cache, char* path) {
 	return NULL;
 }
 
-void addToCache(cache_LL cache, char* data, char* path)
+void addToCache(cache_LL* cache, char* data, char* path)
 {
-	web_object toAdd = calloc(sizeof(web_object));
+	web_object* toAdd = calloc(1, sizeof(web_object));
 	strcpy(toAdd->data, data);
-	strcpy(toAdd->path, path);
 	toAdd->timestamp = timecounter;
+	unsigned int additionalSize = sizeof(data);
+	strcpy(toAdd->path, path);
+
+	if(additionalSize > MAX_OBJECT_SIZE)
+		return;
+	toAdd->size = additionalSize;
+	cache->size += additionalSize;
 	//Adding the object to the head of the linked list representing the cache
-	toAdd->next = cache;
+	toAdd->next = cache->head;
 	cache->head = toAdd;
-	/*
-	*
-	* 		TO BE COMPLETED....
-	*
-	*
-	*/
+	timecounter++;
+
+	while(cache->size > MAX_CACHE_SIZE)
+	{
+		evictAnObject(cache);
+	}
 }
 
-void evictAnObject (cache_LL cache)
+void evictAnObject (cache_LL* cache)
 {
 	unsigned int leastRecentTime = cache->head->timestamp;
-	web_object cursor = cache->head;
+	web_object* cursor = cache->head;
 	//The following while loop finds the exact timestamp of the least 
 	//recently used web object by iterating through the cache
 	while(cursor != NULL)
