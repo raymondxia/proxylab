@@ -33,7 +33,7 @@ unsigned int timecounter = 0;
 cache_LL cache;
 
 web_object* checkCache(cache_LL* cache, char* path);
-void addToCache(cache_LL* cache, char* data, char* path);
+void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize);
 void evictAnObject(cache_LL* cache);
 
 web_object* checkCache(cache_LL* cache, char* path) {
@@ -51,18 +51,16 @@ web_object* checkCache(cache_LL* cache, char* path) {
 	return NULL;
 }
 
-void addToCache(cache_LL* cache, char* data, char* path)
+void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 {
 	web_object* toAdd = calloc(1, sizeof(web_object));
 	strcpy(toAdd->data, data);
 	toAdd->timestamp = timecounter;
-	unsigned int additionalSize = sizeof(data);
 	strcpy(toAdd->path, path);
-
-	if(additionalSize > MAX_OBJECT_SIZE)
-		return;
-	toAdd->size = additionalSize;
-	cache->size += additionalSize;
+	//if(additionalSize > MAX_OBJECT_SIZE)
+	//	return;
+	toAdd->size = addSize;
+	cache->size += addSize;
 	//Adding the object to the head of the linked list representing the cache
 	toAdd->next = cache->head;
 	cache->head = toAdd;
