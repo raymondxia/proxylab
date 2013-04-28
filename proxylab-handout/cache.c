@@ -18,6 +18,7 @@ typedef struct web_object {
   char *data;
   unsigned int timestamp;
   unsigned int size;
+  char* path;
   struct web_object* next;
 }web_object;
 
@@ -26,9 +27,43 @@ typedef struct cache_LL {
   unsigned int size;
 }cache_LL;
 
+/* Defining Global variables */
+unsigned int timecounter;
+
+web_object checkCache(cache_LL cache, char* path);
 void addToCache(cache_LL cache, web_object obj);
 void evictAnObject(cache_LL cache);
-void checkCache(cache_LL cache, char* data);
+
+web_object checkCache(cache_LL cache, char* path) {
+	web_object cursor = cache->head;
+	while(cursor != NULL)
+	{
+		if(strcmp(cursor->path, path)) {
+			cursor->timestamp++;
+			return cursor;
+		}
+			
+		cursor = cursor->next;
+	}
+	return NULL;
+}
+
+void addToCache(cache_LL cache, char* data, char* path)
+{
+	web_object toAdd = calloc(sizeof(web_object));
+	strcpy(toAdd->data, data);
+	strcpy(toAdd->path, path);
+	toAdd->timestamp = timecounter;
+	//Adding the object to the head of the linked list representing the cache
+	toAdd->next = cache;
+	cache->head = toAdd;
+	/*
+	*
+	* 		TO BE COMPLETED....
+	*
+	*
+	*/
+}
 
 void evictAnObject (cache_LL cache)
 {
