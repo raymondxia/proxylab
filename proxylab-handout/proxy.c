@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
-
+	dbg_printf("\nDEBUG CHECK\n");
         serve(connfd);
         Close(connfd);
     }
@@ -94,14 +94,17 @@ int main(int argc, char **argv)
     read_headers(&rio);
 
     // Parse URL out of request
+    dbg_printf("PRE-PARSE\n");
     is_static = parse_url(url, host, path, cgiargs);
+    dbg_printf("POST-PARSE\n");
 
-    /* Parse out GET request */
+    /* Parse out GET request
     if (stat(path, &sbuf) < 0)
     {
+        dbg_printf("This branch\n");
         clienterror(file_d, path, "404", "Not found", "Couldn't access site");
         return;
-    }
+	}*/
 
     /* Serve static content */
     if (is_static)
@@ -179,16 +182,12 @@ void read_headers(rio_t *rp)
  */
 int parse_url(char *url, char *host, char *path, char *cgiargs)
 {
-    char *frst_ptr;
-    char *last_ptr;
+    char *path_ptr;
 
-    /* i don't think this stuff is necessary ...
-    if (!strstr(url, "cgi-bin"))
-    {
-        strcpy
-    }
-    */
+    char temp[MAXLINE];
+    strcpy(temp, url);
 
+    /*
     if ((frst_ptr = strstr(url, "www.")) == NULL)
     {
         app_error("URL doesn't have a \'.\' in it?");
@@ -199,43 +198,30 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     {
         app_error("Only one \'.\' in URL?");
         exit(1);
-    }
+	}*/
 
-    long diff = (unsigned long)last_ptr - (unsigned long)frst_ptr;
-    diff += 4; // ending length
-    if (diff <= 0 || diff >= MAXLINE)
+    // remove suffix from url
+    sscanf(url, "http://%s", url);
+
+    if ((path_ptr = strchr(url, '/')) == NULL)
     {
-        app_error("I've dont something wrong in parsing...\n");
-        exit(1);
+        strcpy(host, url);
+	strcpy(cgiargs, "");
+        strcpy(path, "/");
+
     }
 
-    strcpy(cgiargs, "");
-    strncpy(host, frst_ptr, diff);
-    host[diff] = '\0';
-
-    dbg_printf("Just checking. Got HOST: %s\n", host);
-    dbg_printf("               From URL: %s\n\n", url);
-
-    int diff2 = strlen(url) - strlen("http://") - diff;
-    strcpy(path, url + diff2);
-
-    printf("\nCHECK 1\n");
-
-    printf("path: %s\n", path);
-    if (strstr(path, "/") != path)
+    else
     {
-        char *temp = " ";
-        strcpy(temp, path);
-	printf("temp: %s\n", temp);
-        path = "/";
-        strcat(path, temp);
+        strcpy(path, path_ptr);
+	strncpy(host, url, (int)(path_ptr - url));
+	strcpy(cgiargs, "");
     }
 
-    printf("\nCHECK 2\n");
-
-    dbg_printf("Also checking. Got PATH: %s\n", path);
-    dbg_printf("               From URL: %s\n\n", url);
-
+    dbg_printf("LEAVING PARSE_URL()!\n");
+    dbg_printf("   URL = %s\n", temp);
+    dbg_printf("  HOST = %s\n", host);
+    dbg_printf("  PATH = %s\n\n", path);
 
     return 1;
 
