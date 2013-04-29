@@ -27,7 +27,7 @@ static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 void serve(int file_d);
 void read_headers(rio_t *rp);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(int fd, char *host, char *path, char *reply);
+void make_request(int fd, char *host, char *path);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -73,8 +73,6 @@ int main(int argc, char **argv)
  */
  void serve(int file_d)
  {
-    int is_static;
-    //    struct stat sbuf;
     char method[MAXLINE], url[MAXLINE], version[MAXLINE];
     char buf[MAXLINE], host[MAXLINE], path[MAXLINE], cgiargs[MAXLINE];
     rio_t rio;
@@ -88,6 +86,7 @@ int main(int argc, char **argv)
     // figure this out
     if (strcasecmp(method, "GET"))
     {
+        dbg_printf("Asked for something other than GET\n");
         // use CS:APP error functions?
         clienterror(file_d, method, "501", "Request not implemented", "Nope");
         return;
@@ -97,26 +96,11 @@ int main(int argc, char **argv)
 
     // Parse URL out of request
     dbg_printf("PRE-PARSE\n");
-    is_static = parse_url(url, host, path, cgiargs);
+    parse_url(url, host, path, cgiargs);
     dbg_printf("POST-PARSE\n");
 
+    make_request(file_d, host, path);
 
-
-    /* Serve static content */
-    if (is_static)
-    {
-        // check if file requested is legal
-        /*
-        if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
-        {
-            dbg_printf("Status read error!\n");
-            clienterror(file_d, path, "403", "Forbidden", "Can't read the file");
-            return;
-	    }*/
-
-        strcpy(buf, "");
-        make_request(file_d, host, path, buf);
-    }
 
  }
 
@@ -161,6 +145,8 @@ void read_headers(rio_t *rp)
 {
    char buf[MAXLINE];
 
+   dbg_printf("\nReading headers\n-----------\n");
+
    Rio_readlineb(rp, buf, MAXLINE);
    while(strcmp(buf, "\r\n"))
    {
@@ -168,6 +154,7 @@ void read_headers(rio_t *rp)
         printf("%s", buf);
    }
 
+   dbg_printf("--------\nDone with headers\n");
    return;
 }
 
@@ -209,58 +196,41 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-void make_request(int fd, char *host, char *path, char *reply)
+void make_request(int fd, char *host, char *path)
 {
 
     int net_fd;
-    char buf[MAXBUF];
+    char buf[MAXBUF], reply[MAXBUF];
     rio_t rio;
 
     net_fd = Open_clientfd(host, 80);
 
-    sprintf(buf, "GET %s HTTP/1.0\r\n", path);
+    sprintf(buf, "GET %s HTTP/1.0\r\n\r\n", path);
 
     Rio_writen(net_fd, buf, strlen(buf));
 
 
     strcpy(reply, "");
+    strcpy(buf, "");
     Rio_readinitb(&rio, net_fd);
-    dbg_printf("Just sent request:\n");
-    dbg_printf("    %s\n", buf);
-    dbg_printf("To host:\n");
-    dbg_printf("    %s\n", host);
-    dbg_printf("Reading from host ... \n");
-    Rio_readlineb(&rio, reply, MAXLINE);
-    dbg_printf("Writing to client ... \n");
-    Rio_writen(fd, reply, strlen(reply));
+
+    int read_return;
+
+    //   read_return = Rio_readlineb(&rio, reply, MAXLINE);
+    //   sprintf(buf, "%s%s", buf, reply);
+
+    //int file_check = 1;
+
+
+    do
+    {
+        read_return = Rio_readnb(&rio, reply, MAXBUF);
+	//dbg_printf("READ_RETURN = %d\n", read_return);
+	Rio_writen(fd, reply, read_return);
+    }while( read_return > 0);
+
+    return;
 }
-
-
-/*
- * Serves static html to client
-void serve_static(int fd, char *filename, int filesize)
-{
-    int srcfd;
-    char *srcp, buf[MAXBUF];
-
-    sprintf(buf, "Host: www.cmu.edu\r\n");
-    sprintf(buf, "%sUser-Agent: %s\r\n", buf, user_agent);
-    sprintf(buf, "%sAccept: %s\r\n", buf, accept_);
-    sprintf(buf, "%sAccept-Encoding: %s\r\n", buf, accept_encoding);
-    sprintf(buf, "%sConnection: close\r\n", buf);
-    sprintf(buf, "%sProxy-Connection: close\r\n", buf);
-    Rio_writen(fd, buf, strlen(buf));
-
-
-
-
-    srcfd = Open(filename, O_RDONLY, 0);
-    srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
-    Close(srcfd);
-    Rio_writen(fd, srcp, filesize);
-    Munmap(srcp, filesize);
-
-} */
 
 
 
