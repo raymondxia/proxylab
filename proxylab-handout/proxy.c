@@ -25,9 +25,9 @@ static const char *accept_type = "Accept: text/html,application/xhtml+xml,applic
 static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 
 void serve(int file_d);
-void read_headers(rio_t *rp, char* host_header);
+void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(int fd, char *host, char *path, char *host_header);
+void make_request(int fd, char *host, char *path, char *host_header, char *other_headers);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
  {
     char method[MAXLINE], url[MAXLINE], version[MAXLINE];
     char buf[MAXLINE], host[MAXLINE], path[MAXLINE], cgiargs[MAXLINE];
-    char host_header[MAXLINE];
+    char host_header[MAXLINE], other_headers[MAXLINE];
     rio_t rio;
 
     /* Read in a request from client */
@@ -98,14 +98,19 @@ int main(int argc, char **argv)
     printf("<><><><><><><><><><><><><><><><><><>\n");
 
 
-    read_headers(&rio, host_header);
+    read_headers(&rio, host_header, other_headers);
 
     // Parse URL out of request
     dbg_printf("PRE-PARSE\n");
     parse_url(url, host, path, cgiargs);
+
     dbg_printf("POST-PARSE\n");
 
-    make_request(file_d, host, path, host_header);
+
+    if (!strncmp(buf, "https", strlen("https")))
+        printf("\n\n\n EXPECT A DNS ERROR \n\n");
+
+    make_request(file_d, host, path, host_header, other_headers);
 
 
  }
@@ -147,9 +152,11 @@ void terminate (int param)
 /*
 * Reads in an ignores headers of requests
 */
-void read_headers(rio_t *rp, char *host_header)
+void read_headers(rio_t *rp, char *host_header, char *other_headers)
 {
    char buf[MAXLINE];
+
+   strcpy(other_headers, "");
 
    dbg_printf("\nReading headers\n-----------\n");
 
@@ -163,6 +170,15 @@ void read_headers(rio_t *rp, char *host_header)
 
 	if (!strncmp(buf, "Host: ", prefix))
             strcpy(host_header, buf + prefix);
+
+        if (strncmp(buf, "User-Agent: ", strlen("User-Agent: ")) &&
+            strncmp(buf, "Accept: ", strlen("Accept: ")) &&
+            strncmp(buf, "Accept-Encoding: ", strlen("Accept-Encoding: ")) &&
+            strncmp(buf, "Connection: ", strlen("Connection: ")) &&
+            strncmp(buf, "Proxy-Connection: ", strlen("Proxy-Connection: ")))
+       {
+            sprintf(other_headers, "%s%s", other_headers, buf);
+       }
    }
 
    dbg_printf("--------\nDone with headers\n");
@@ -180,6 +196,14 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     char temp[MAXLINE];
     strcpy(temp, url);
 
+    memset(host, 0, sizeof(host));
+    memset(path, 0, sizeof(path));
+
+
+    //    if (!strncmp(buf, "https", strlen("https")))
+    // strcpy(
+
+
     sscanf(url, "http://%s", url);
 
     if ((path_ptr = strchr(url, '/')) == NULL)
@@ -193,8 +217,12 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     else
     {
         strcpy(path, path_ptr);
-        strncpy(host, url, (int)(path_ptr - url));
-        strcpy(cgiargs, "");
+
+        dbg_printf("strlen\n");
+
+        path_ptr[0] = '\0';
+        strcpy(host, url);
+	//strncpy(host, url, (int)(path_ptr - url));
     }
 
     dbg_printf("LEAVING PARSE_URL()!\n");
@@ -207,7 +235,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-void make_request(int fd, char *host, char *path, char *host_header)
+void make_request(int fd, char *host, char *path, char *host_header, char *other_headers)
 {
 
     int net_fd;
@@ -216,10 +244,17 @@ void make_request(int fd, char *host, char *path, char *host_header)
 
     net_fd = Open_clientfd(host, 80);
 
+    if (net_fd < -1)
+    {
+        clienterror(fd, host, "DNS!", "DNS error, this host isn't a host!", "Ah!");
+	return;
+    }
+
+
     sprintf(buf, "GET %s HTTP/1.0\r\n", path);
     printf("Send request buf: \n%s\n", buf);
 
-    if (host_header == NULL)
+    if (!strlen(host_header))
         sprintf(buf, "%sHost: %s\r\n", buf, host);
     else
         sprintf(buf, "%sHost: %s\r\n", buf, host_header);
@@ -228,6 +263,12 @@ void make_request(int fd, char *host, char *path, char *host_header)
     sprintf(buf, "%sAccept-Encoding: %s\r\n", buf, accept_encoding);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sProxy-Connection: close\r\n", buf);
+    sprintf(buf, "%s%s\r\n", buf, other_headers);
+
+    dbg_printf("\n55555555555  SENDING REQUEST  5555555555555555555\n");
+    dbg_printf("%s\n", buf);
+    dbg_printf("\n55555555555  ENDING  REQUEST  5555555555555555555\n");
+
 
     Rio_writen(net_fd, buf, strlen(buf));
 
