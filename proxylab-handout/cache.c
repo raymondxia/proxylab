@@ -78,7 +78,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 	web_object* toAdd = Calloc(1, sizeof(web_object));
 
 
-    dbg_printf("CACHE >> Creating cache object.\n");
+        dbg_printf("CACHE >> Creating cache object.\n");
 
 
 	/******* FIX! ******/
@@ -118,7 +118,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 		evictAnObject(cache);
 	}
 
-    dbg_printf("CACHE >> Done adding.\n");
+        dbg_printf("CACHE >> Done adding.\n");
 }
 
 void evictAnObject (cache_LL* cache)
@@ -129,40 +129,49 @@ void evictAnObject (cache_LL* cache)
 	web_object* cursor = cache->head;
 	//The following while loop finds the exact timestamp of the least
 	//recently used web object by iterating through the cache
+
+	dbg_printf("");
+
 	while(cursor != NULL)
 	{
 		if(cursor->timestamp < leastRecentTime)
 			leastRecentTime = cursor->timestamp;
 		cursor = cursor->next;
 	}
-	web_object* temp;
 
 	//reset the cursor
 	cursor = cache->head;
 
-	if(cache->head->timestamp == leastRecentTime)
+
+	web_object *temp;
+
+        if( cache->head->timestamp == leastRecentTime)
+        {
+	    temp = cache->head;
+	    cache->head = cache->head->next;
+	    free(temp->data);
+	    free(temp->path);
+	    free(temp);
+        }
+
+        // this loop goes back and deletes that old cache object
+        while(cursor->next != NULL)
 	{
-		temp = cache->head;
-		cache->head = cache->head->next;
+	    if(cursor->next->timestamp == leastRecentTime)
+	    {
+		cache->size -= cursor->next->size;
+		cursor->next = cursor->next->next;
+		temp = cursor->next;
+		//since i've allocated memory for these fields, need to free them
 		free(temp->data);
 		free(temp->path);
 		free(temp);
+
+		return;
+	    }
+
+	    cursor = cursor->next;
 	}
 
-	// this loop goes back and deletes that old cache object
-	while(cursor->next != NULL)
-	{
-		if(cursor->next->timestamp == leastRecentTime)
-		{
-			cache->size -= cursor->next->size;
-			cursor->next = cursor->next->next;
-			temp = cursor->next;
-			//since i've allocated memory for these fields, need to free them
-			free(temp->data);
-			free(temp->path);
-			free(temp);
-		}		
-		cursor = cursor->next;
-	}
 }
 

@@ -274,9 +274,9 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
         sprintf(buf, "%sHost: %s\r\n", buf, host);
     else
         sprintf(buf, "%sHost: %s\r\n", buf, host_header);
-    sprintf(buf, "%s%s\r\n", buf, user_agent);
-    sprintf(buf, "%s%s\r\n", buf, accept_type);
-    sprintf(buf, "%s%s\r\n", buf, accept_encoding);
+    sprintf(buf, "%s%s", buf, user_agent);
+    sprintf(buf, "%s%s", buf, accept_type);
+    sprintf(buf, "%s%s", buf, accept_encoding);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sProxy-Connection: close\r\n", buf);
     sprintf(buf, "%s%s\r\n", buf, other_headers);
@@ -307,10 +307,15 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
     dbg_printf("Entering reading loop\n");
     do
     {
+
         strcpy(reply, "");
 
+
+
         dbg_printf("Read \n");
+
         read_return = Rio_readnb(&rio, reply, MAXBUF);
+
 	//dbg_printf("Double check \n");
         dbg_printf("Read return: %d\n", read_return);
 	dbg_printf("Object size: %d\n", cache_object_size);
@@ -336,6 +341,9 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
         addToCache(cache, cache_object, url, cache_object_size);
         dbg_printf("Done!\n");
     }
+
+
+    dbg_printf("\n\n\n>>------------------------<<\n\n\n");
 
     return;
 }
