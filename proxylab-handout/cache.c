@@ -4,6 +4,7 @@
 #define MAX_OBJECT_SIZE 102400
 
 #include "cache.h"
+#include "csapp.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,12 +12,21 @@
 #include <getopt.h>
 #include <stdlib.h>
 
+
+#define DEBUG
+#ifdef DEBUG
+# define dbg_printf(...) printf(__VA_ARGS__)
+#else
+# define dbg_printf(...)
+#endif
+
+
 /* The cache will be represented as a linked list of web objects
    The eviction policy will be LRU and each object will hold a
    timestamp indicating when it was last used */
-/* 
+/*
 typedef struct web_object{
-  char *data;
+  char* data;
   unsigned int timestamp;
   unsigned int size;
   char* path;
@@ -37,46 +47,87 @@ unsigned int timecounter = 0;
 //void evictAnObject(cache_LL* cache);
 
 web_object* checkCache(cache_LL* cache, char* path) {
+
+  dbg_printf("\nCACHE >> Checking Cache for %s\n", path);
+
 	web_object* cursor = cache->head;
 	timecounter++;
 	while(cursor != NULL)
 	{
-		if(strcmp(cursor->path, path)) {
+	  dbg_printf("CACHE >> Compare to %s\n", cursor->path);
+
+		if(!strcmp(cursor->path, path)) {
 			cursor->timestamp = timecounter;
+			dbg_printf("CACHE >> Found in cache!\n");
 			return cursor;
 		}
-			
+
 		cursor = cursor->next;
 	}
+
+	dbg_printf("CACHE >> Not found in cache.\n");
 	return NULL;
 }
 
 void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 {
-	web_object* toAdd = calloc(1, sizeof(web_object));
-	strcpy(toAdd->data, data);
+        dbg_printf("\nCACHE >> Adding to cache: %s\n", path);
+
+
+	dbg_printf("CACHE >> Allocating %lu bytes for new web_object.\n", sizeof(web_object));
+	web_object* toAdd = Calloc(1, sizeof(web_object));
+
+
+        dbg_printf("CACHE >> Creating cache object.\n");
+
+
+	/******* FIX! ******/
+	//have to treat data as byte array, not as string
+	//strcpy(toAdd->data, data);
+
+	//try allocating space for these strings!
+        toAdd->data = Calloc(1, MAX_OBJECT_SIZE);
+	dbg_printf("CACHE >> Attempting adding data of size %d\n", addSize);
+	dbg_printf("                       to field of size %lu\n", sizeof(toAdd->data));
+        memcpy(toAdd->data, data, addSize);
+	dbg_printf("CACHE >> Copied data.\n");
+
 	toAdd->timestamp = timecounter;
+	dbg_printf("CACHE >> Updated timestamp.\n");
+
+	toAdd->path = Calloc(1, MAXLINE);
 	strcpy(toAdd->path, path);
-	//if(additionalSize > MAX_OBJECT_SIZE)
-	//	return;
+	dbg_printf("CACHE >> Copied path.\n");
+
 	toAdd->size = addSize;
+	dbg_printf("CACHE >> Updated size.\n");
+
 	cache->size += addSize;
+	dbg_printf("CACHE >> Incremented cache size.\n");
+
 	//Adding the object to the head of the linked list representing the cache
 	toAdd->next = cache->head;
+	dbg_printf("CACHE >> Object's next = cache's head.\n");
+
 	cache->head = toAdd;
+	dbg_printf("CACHE >> Cache list points here.\n");
 	timecounter++;
 
 	while(cache->size > MAX_CACHE_SIZE)
 	{
 		evictAnObject(cache);
 	}
+
+        dbg_printf("CACHE >> Done adding.\n");
 }
 
 void evictAnObject (cache_LL* cache)
 {
+        dbg_printf("CACHE >> Evicting from cache.\n");
+
 	unsigned int leastRecentTime = cache->head->timestamp;
 	web_object* cursor = cache->head;
-	//The following while loop finds the exact timestamp of the least 
+	//The following while loop finds the exact timestamp of the least
 	//recently used web object by iterating through the cache
 	while(cursor != NULL)
 	{
@@ -87,6 +138,7 @@ void evictAnObject (cache_LL* cache)
 	//reset the cursor
 	cursor = cache->head;
 
+	// this loop goes back and deletes that old cache object
 	while(cursor != NULL)
 	{
 		if(cursor->timestamp == leastRecentTime)
@@ -97,8 +149,12 @@ void evictAnObject (cache_LL* cache)
 			}
 			else
 				cursor->next = NULL;
+
+			//since i've allocated memory for these fields, need to free them
+			free(cursor->data);
+			free(cursor->path);
 		}
-		cursor = cursor->next; 
+		cursor = cursor->next;
 	}
 }
 

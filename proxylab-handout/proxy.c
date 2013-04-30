@@ -28,11 +28,12 @@ static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(int fd, char *host, char *path, char *host_header, char *other_headers);
+void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
 cache_LL* cache;
+
 /*
 * Main function
 */
@@ -44,7 +45,12 @@ int main(int argc, char **argv)
 
     int listenfd, connfd, port, clientlen;
     struct sockaddr_in clientaddr;
+
+    //cache initialization
     cache = (cache_LL*) Calloc(1, sizeof(cache_LL));
+    cache->head = NULL;
+    cache->size = 0;
+
 
     signal(SIGPIPE, terminate);
 
@@ -61,7 +67,6 @@ int main(int argc, char **argv)
     {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
-        dbg_printf("\nDEBUG CHECK\n");
         serve(connfd);
         Close(connfd);
     }
@@ -96,23 +101,24 @@ int main(int argc, char **argv)
     }
 
 
-    printf("\n<><><><><><><><><><><><><><><><><><>\n");
-    printf("<><><><><><><><><><><><><><><><><><>\n");
-
-
     read_headers(&rio, host_header, other_headers);
 
     // Parse URL out of request
     dbg_printf("PRE-PARSE\n");
-    parse_url(url, host, path, cgiargs);
 
+    // make a new string so as not to defile original url
+    char url_arg[MAXLINE];
+    strcpy(url_arg, url);
+    parse_url(url_arg, host, path, cgiargs);
     dbg_printf("POST-PARSE\n");
 
 
     if (!strncmp(buf, "https", strlen("https")))
         printf("\n\n\n EXPECT A DNS ERROR \n\n");
 
-    make_request(file_d, host, path, host_header, other_headers);
+
+    dbg_printf("\nRequesting with URL : %s\n\n", url);
+    make_request(file_d, url, host, path, host_header, other_headers);
 
 
  }
@@ -237,17 +243,16 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-void make_request(int fd, char *host, char *path, char *host_header, char *other_headers)
+void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers)
 {
-    char* url = "";
-    strcpy(url, host);
-    strcat(url, path);
+
     web_object* found = checkCache(cache, url);
+
     if(found != NULL) {
         Rio_writen(fd, found->data, found->size);
         return;
     }
-        
+
 
     int net_fd;
     char buf[MAXBUF], reply[MAXBUF];
@@ -276,9 +281,9 @@ void make_request(int fd, char *host, char *path, char *host_header, char *other
     sprintf(buf, "%sProxy-Connection: close\r\n", buf);
     sprintf(buf, "%s%s\r\n", buf, other_headers);
 
-    dbg_printf("\n55555555555  SENDING REQUEST  5555555555555555555\n");
-    dbg_printf("%s\n", buf);
-    dbg_printf("\n55555555555  ENDING  REQUEST  5555555555555555555\n");
+    dbg_printf("\n   SENDING REQUEST\n");
+    //dbg_printf("%s\n", buf);
+    dbg_printf("\n   ENDING  REQUEST\n");
 
 
     Rio_writen(net_fd, buf, strlen(buf));
@@ -296,19 +301,38 @@ void make_request(int fd, char *host, char *path, char *host_header, char *other
     //int file_check = 1;
 
 
+    char cache_object[MAX_OBJECT_SIZE];
+    int cache_object_size = 0;
+
+    dbg_printf("Entering reading loop\n");
     do
     {
+        strcpy(reply, "");
+        dbg_printf("Read \n");
         read_return = Rio_readnb(&rio, reply, MAXBUF);
-        //dbg_printf("READ_RETURN = %d\n", read_return);
+	//dbg_printf("Double check \n");
 
-	//printf("\n==============================\n");
-	//printf("==============================\n");
-	//read_headers(&rio);
-	//Rio_writen(1, reply, read_return);
+	cache_object_size += read_return;
+        if ( cache_object_size < MAX_OBJECT_SIZE )
+        {
+ 	    dbg_printf("Cache . . . \n");
+            sprintf(cache_object, "%s%s", cache_object, reply);
+
+        }
+
+	dbg_printf("Write . . . \n");
         Rio_writen(fd, reply, read_return);
-    }while( read_return > 0);
 
-    if(read_return < MAX_OBJECT_SIZE)
-        addToCache(cache, reply, url, read_return);
+	dbg_printf("Loop\n\n");
+    } while ( read_return > 0);
+
+
+    if (cache_object_size < MAX_OBJECT_SIZE)
+    {
+        dbg_printf("\nAdding to cache . . . \n");
+        addToCache(cache, cache_object, url, cache_object_size);
+        dbg_printf("Done!\n");
+    }
+
     return;
 }
