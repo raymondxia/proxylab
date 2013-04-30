@@ -78,7 +78,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 	web_object* toAdd = Calloc(1, sizeof(web_object));
 
 
-        dbg_printf("CACHE >> Creating cache object.\n");
+    dbg_printf("CACHE >> Creating cache object.\n");
 
 
 	/******* FIX! ******/
@@ -118,7 +118,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 		evictAnObject(cache);
 	}
 
-        dbg_printf("CACHE >> Done adding.\n");
+    dbg_printf("CACHE >> Done adding.\n");
 }
 
 void evictAnObject (cache_LL* cache)
@@ -135,25 +135,33 @@ void evictAnObject (cache_LL* cache)
 			leastRecentTime = cursor->timestamp;
 		cursor = cursor->next;
 	}
+	web_object* temp;
+
 	//reset the cursor
 	cursor = cache->head;
 
-	// this loop goes back and deletes that old cache object
-	while(cursor != NULL)
+	if(cache->head->timestamp == leastRecentTime)
 	{
-		if(cursor->timestamp == leastRecentTime)
-		{
-			if(cursor->next->next != NULL) {
-				cache->size -= cursor->size;
-				cursor->next = cursor->next->next;
-			}
-			else
-				cursor->next = NULL;
+		temp = cache->head;
+		cache->head = cache->head->next;
+		free(temp->data);
+		free(temp->path);
+		free(temp);
+	}
 
+	// this loop goes back and deletes that old cache object
+	while(cursor->next != NULL)
+	{
+		if(cursor->next->timestamp == leastRecentTime)
+		{
+			cache->size -= cursor->next->size;
+			cursor->next = cursor->next->next;
+			temp = cursor->next;
 			//since i've allocated memory for these fields, need to free them
-			free(cursor->data);
-			free(cursor->path);
-		}
+			free(temp->data);
+			free(temp->path);
+			free(temp);
+		}		
 		cursor = cursor->next;
 	}
 }

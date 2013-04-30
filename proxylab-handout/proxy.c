@@ -308,6 +308,7 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
     do
     {
         strcpy(reply, "");
+
         dbg_printf("Read \n");
         read_return = Rio_readnb(&rio, reply, MAXBUF);
 	//dbg_printf("Double check \n");
