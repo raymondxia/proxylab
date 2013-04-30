@@ -14,7 +14,7 @@
 /* The cache will be represented as a linked list of web objects
    The eviction policy will be LRU and each object will hold a
    timestamp indicating when it was last used */
-
+/* 
 typedef struct web_object{
   char *data;
   unsigned int timestamp;
@@ -27,13 +27,14 @@ typedef struct cache_LL{
   web_object* head;
   unsigned int size;
 }cache_LL;
+ */
 
 /* Defining Global variables */
 unsigned int timecounter = 0;
 
-web_object* checkCache(cache_LL* cache, char* path);
-void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize);
-void evictAnObject(cache_LL* cache);
+//web_object* checkCache(cache_LL* cache, char* path);
+//void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize);
+//void evictAnObject(cache_LL* cache);
 
 web_object* checkCache(cache_LL* cache, char* path) {
 	web_object* cursor = cache->head;

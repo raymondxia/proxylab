@@ -8,6 +8,7 @@
 */
 #include <stdio.h>
 #include "csapp.h"
+#include "cache.h"
 
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
@@ -31,7 +32,7 @@ void make_request(int fd, char *host, char *path, char *host_header, char *other
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
-
+cache_LL* cache;
 /*
 * Main function
 */
@@ -43,6 +44,7 @@ int main(int argc, char **argv)
 
     int listenfd, connfd, port, clientlen;
     struct sockaddr_in clientaddr;
+    cache = (cache_LL*) Calloc(1, sizeof(cache_LL));
 
     signal(SIGPIPE, terminate);
 
@@ -237,6 +239,15 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
 void make_request(int fd, char *host, char *path, char *host_header, char *other_headers)
 {
+    char* url = "";
+    strcpy(url, host);
+    strcat(url, path);
+    web_object* found = checkCache(cache, url);
+    if(found != NULL) {
+        Rio_writen(fd, found->data, found->size);
+        return;
+    }
+        
 
     int net_fd;
     char buf[MAXBUF], reply[MAXBUF];
@@ -297,5 +308,7 @@ void make_request(int fd, char *host, char *path, char *host_header, char *other
         Rio_writen(fd, reply, read_return);
     }while( read_return > 0);
 
+    if(read_return < MAX_OBJECT_SIZE)
+        addToCache(cache, reply, url, read_return);
     return;
 }
