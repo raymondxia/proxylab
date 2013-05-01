@@ -129,7 +129,25 @@ int main(int argc, char **argv)
 
 
     dbg_printf("\nRequesting with URL : %s\n\n", url);
-    make_request(file_d, url, host, path, host_header, other_headers, port);
+
+    req_args *args = (req_args *)Calloc(1, sizeof(req_args));
+
+    args->url = Calloc(1, MAXLINE);
+    args->host = Calloc(1, MAXLINE);
+    args->path = Calloc(1, MAXLINE);
+    args->host_header = Calloc(1, MAXLINE);
+    args->other_headers = Calloc(1, MAXLINE);
+
+    strcpy(args->url, url);
+    strcpy(args->host, host);
+    strcpy(args->path, path);
+    strcpy(args->host_header, host_header);
+    strcpy(args->other_headers, other_headers);
+
+    args->port = port;
+    args->fd = file_d;
+
+    make_request(args);
 
 
  }
