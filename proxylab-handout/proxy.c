@@ -132,17 +132,19 @@ int main(int argc, char **argv)
 
     req_args *args = (req_args *)Calloc(1, sizeof(req_args));
 
+    /*
     args->url = Calloc(1, MAXLINE);
     args->host = Calloc(1, MAXLINE);
     args->path = Calloc(1, MAXLINE);
     args->host_header = Calloc(1, MAXLINE);
     args->other_headers = Calloc(1, MAXLINE);
+    */
 
-    strcpy(args->url, url);
-    strcpy(args->host, host);
-    strcpy(args->path, path);
-    strcpy(args->host_header, host_header);
-    strcpy(args->other_headers, other_headers);
+    args->url = url;
+    args->host = host;
+    args->path = path;
+    args->host_header = host_header;
+    args->other_headers = other_headers;
 
     args->port = port;
     args->fd = file_d;
@@ -350,11 +352,6 @@ void *make_request(void *argstruct)
     if (check != strlen(buf))
     {
       clienterror(fd, "Wrote wrong", "WRITE", "Writting Crash", "Error writting.");
-       free(url);
-       free(host);
-       free(path);
-       free(host_header);
-       free(other_headers);
 
        free(argstruct);
 
@@ -414,12 +411,6 @@ void *make_request(void *argstruct)
         dbg_printf("Done!\n");
     }
 
-
-    free(url);
-    free(host);
-    free(path);
-    free(host_header);
-    free(other_headers);
 
     free(argstruct);
 
