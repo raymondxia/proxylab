@@ -35,6 +35,8 @@ void *thread(void *arg);
 
 cache_LL* cache;
 
+sem_t accept_mutex;
+
 /*
 * Main function
 */
@@ -48,6 +50,7 @@ int main(int argc, char **argv)
     struct sockaddr_in clientaddr;
 
     pthread_t tid;
+    Sem_init(&accept_mutex, 0, 1);
 
     //cache initialization
     cache = (cache_LL*) Calloc(1, sizeof(cache_LL));
@@ -72,6 +75,7 @@ int main(int argc, char **argv)
     {
         clientlen = sizeof(clientaddr);
 	connfd = Calloc(1, sizeof(int));
+        P(&accept_mutex);
         *connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
 
 	Pthread_create(&tid, NULL, thread, connfd);
@@ -85,6 +89,8 @@ int main(int argc, char **argv)
 void *thread(void *arg)
 {
   int connfd = *((int *)arg);
+  V(&accept_mutex);
+
   Pthread_detach(pthread_self());
 
   Free(arg);
@@ -177,8 +183,8 @@ void terminate (int param)
 
 /*
 * Reads in and ignores headers of requests.
-* host_header and other_headers are merely buffers 
-* to store the information obtained from reading 
+* host_header and other_headers are merely buffers
+* to store the information obtained from reading
 * regarding the host headers and other necessary
 * headers respectively.
 */
@@ -209,7 +215,7 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
        {
             sprintf(other_headers, "%s%s", other_headers, buf);
        }
-    /* We added this check in order to ignore garbage headers */   
+    /* We added this check in order to ignore garbage headers */
 	if (buf[0] > 90 || buf[0] < 65)
 	{
 	  return;
@@ -279,12 +285,12 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
 }
 
-/* Make request creates a request using the information such as the port, 
- * file descriptor, url, host, path & necessary headers. These are stored 
+/* Make request creates a request using the information such as the port,
+ * file descriptor, url, host, path & necessary headers. These are stored
  * in a structure called argstruct (in order to use Pcreate_thread for
- * each new request that needs to be made). If the object associated with the url 
- * exists in the cache, we return the stored data from the cache. 
- * If not, the complete request with the 
+ * each new request that needs to be made). If the object associated with the url
+ * exists in the cache, we return the stored data from the cache.
+ * If not, the complete request with the
  * given information is created and stored in buf which is then read
  * MAXBUF bytes at a time. Information about the size & data from the web object
  * are kept track of and stored in cache_object_size & cache_object so that
@@ -344,8 +350,8 @@ void make_request(int fd, char *url, char *host,
 
     int read_return;
 
-    //cache_object size finds the total size of the data 
-    //by summing the total number of bytes received from 
+    //cache_object size finds the total size of the data
+    //by summing the total number of bytes received from
     //every read.
     char cache_object[MAX_OBJECT_SIZE];
     int cache_object_size = 0;
