@@ -39,7 +39,7 @@ typedef struct {
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(req_args *argstruct);
+void *make_request(void *argstruct);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -147,7 +147,8 @@ int main(int argc, char **argv)
     args->port = port;
     args->fd = file_d;
 
-    make_request(args);
+    pthread_t tid;
+    Pthread_create(&tid, NULL, make_request, args);
 
 
  }
@@ -291,22 +292,25 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-void make_request(req_args *argstruct)
+void *make_request(void *argstruct)
 {
-    int fd = argstruct->fd;
-    int port = argstruct->port;
-    char *url = argstruct->url;
-    char *host = argstruct->host;
-    char *path = argstruct->path;
-    char *host_header = argstruct->host_header;
-    char *other_headers = argstruct->other_headers;
+    Pthread_detach(Pthread_self());
+
+    req_args *r = (req_args *)(argstruct);
+
+    int fd = r->fd;
+    int port = r->port;
+    char *url = r->url;
+    char *host = r->host;
+    char *path = r->path;
+    char *host_header = r->host_header;
+    char *other_headers = r->other_headers;
 
 
     web_object* found = checkCache(cache, url);
 
     if(found != NULL) {
         Rio_writen(fd, found->data, found->size);
-        return;
     }
 
 
@@ -319,7 +323,7 @@ void make_request(req_args *argstruct)
     if (net_fd < -1)
     {
         clienterror(fd, host, "DNS!", "DNS error, this host isn't a host!", "Ah!");
-	return;
+	return NULL;
     }
 
 
@@ -344,7 +348,18 @@ void make_request(req_args *argstruct)
 
     int check = rio_writen(net_fd, buf, strlen(buf));
     if (check != strlen(buf))
+    {
       clienterror(fd, "Wrote wrong", "WRITE", "Writting Crash", "Error writting.");
+       free(url);
+       free(host);
+       free(path);
+       free(host_header);
+       free(other_headers);
+
+       free(argstruct);
+
+       return NULL;
+    }
 
 
     strcpy(reply, "");
@@ -399,5 +414,14 @@ void make_request(req_args *argstruct)
         dbg_printf("Done!\n");
     }
 
-    return;
+
+    free(url);
+    free(host);
+    free(path);
+    free(host_header);
+    free(other_headers);
+
+    free(argstruct);
+
+    return NULL;
 }
