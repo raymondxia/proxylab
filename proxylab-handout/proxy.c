@@ -25,10 +25,21 @@ static const char *user_agent = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:
 static const char *accept_type = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
 static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 
+
+typedef struct {
+    char *url;
+    char *host;
+    char *path;
+    char *host_header;
+    char *other_headers;
+    int port;
+    int fd;
+} req_args;
+
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers, int port);
+void make_request(req_args *argstruct);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -262,9 +273,16 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-void make_request(int fd, char *url, char *host,
-	char *path, char *host_header, char *other_headers, int port)
+void make_request(req_args *argstruct)
 {
+    int fd = argstruct->fd;
+    int port = argstruct->port;
+    char *url = argstruct->url;
+    char *host = argstruct->host;
+    char *path = argstruct->path;
+    char *host_header = argstruct->host_header;
+    char *other_headers = argstruct->other_headers;
+
 
     web_object* found = checkCache(cache, url);
 
