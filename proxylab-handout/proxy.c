@@ -95,8 +95,10 @@ void *thread(void *arg)
   return NULL;
 }
 
+
 /*
-* Serves a client's request
+* Serves a client's request.
+* file_d is the file descriptor
 */
  void serve(int file_d)
  {
@@ -111,11 +113,9 @@ void *thread(void *arg)
     // move from buffer into string format
     sscanf(buf, "%s %s %s", method, url, version);
 
-    // figure this out
     if (strcasecmp(method, "GET"))
     {
         dbg_printf("Asked for something other than GET\n");
-        // use CS:APP error functions?
         clienterror(file_d, method, "501", "Request not implemented", "Nope");
         return;
     }
@@ -168,17 +168,19 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, body, strlen(body));
 }
 
-//review later
 void terminate (int param)
 {
     printf ("SIGPIPE . . . ignoring!\n");
-    //    exit(1);
 }
 
 
 
 /*
-* Reads in an ignores headers of requests
+* Reads in and ignores headers of requests.
+* host_header and other_headers are merely buffers 
+* to store the information obtained from reading 
+* regarding the host headers and other necessary
+* headers respectively.
 */
 void read_headers(rio_t *rp, char *host_header, char *other_headers)
 {
@@ -198,7 +200,7 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
 
 	if (!strncmp(buf, "Host: ", prefix))
             strcpy(host_header, buf + prefix);
-
+        /* We add other headers when required */
         if (strncmp(buf, "User-Agent: ", strlen("User-Agent: ")) &&
             strncmp(buf, "Accept: ", strlen("Accept: ")) &&
             strncmp(buf, "Accept-Encoding: ", strlen("Accept-Encoding: ")) &&
@@ -207,7 +209,7 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
        {
             sprintf(other_headers, "%s%s", other_headers, buf);
        }
-
+    /* We added this check in order to ignore garbage headers */   
 	if (buf[0] > 90 || buf[0] < 65)
 	{
 	  return;
@@ -231,11 +233,6 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
     memset(host, 0, sizeof(host));
     memset(path, 0, sizeof(path));
-
-
-    //    if (!strncmp(buf, "https", strlen("https")))
-    // strcpy(
-
 
     sscanf(url, "http://%s", url);
 
@@ -261,6 +258,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
     char *port_ptr;
     int port;
+    //checks if the user requests a certain port
     if ((port_ptr = strchr(host, ':')) != NULL)
     {
         port_ptr++;
@@ -270,7 +268,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     }
 
     else
-        port = 80;
+        port = 80;//else uses the default port
 
     dbg_printf("LEAVING PARSE_URL()!\n");
     dbg_printf(" URL = %s\n", temp);
@@ -281,13 +279,24 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
 }
 
-
+/* Make request creates a request using the information such as the port, 
+ * file descriptor, url, host, path & necessary headers. These are stored 
+ * in a structure called argstruct (in order to use Pcreate_thread for
+ * each new request that needs to be made). If the object associated with the url 
+ * exists in the cache, we return the stored data from the cache. 
+ * If not, the complete request with the 
+ * given information is created and stored in buf which is then read
+ * MAXBUF bytes at a time. Information about the size & data from the web object
+ * are kept track of and stored in cache_object_size & cache_object so that
+ * the web object may be cached later.
+ */
 void make_request(int fd, char *url, char *host,
 	char *path, char *host_header, char *other_headers, int port)
 {
 
     web_object* found = checkCache(cache, url);
 
+    //If the object is found, write the data back to the client
     if(found != NULL) {
         Rio_writen(fd, found->data, found->size);
         return;
@@ -306,7 +315,7 @@ void make_request(int fd, char *url, char *host,
 	return;
     }
 
-
+    /* The following code adds the necessary information to make buf a complete request */
     sprintf(buf, "GET %s HTTP/1.0\r\n", path);
     printf("Send request buf: \n%s\n", buf);
 
@@ -335,12 +344,9 @@ void make_request(int fd, char *url, char *host,
 
     int read_return;
 
-    // read_return = Rio_readlineb(&rio, reply, MAXLINE);
-    // sprintf(buf, "%s%s", buf, reply);
-
-    //int file_check = 1;
-
-
+    //cache_object size finds the total size of the data 
+    //by summing the total number of bytes received from 
+    //every read.
     char cache_object[MAX_OBJECT_SIZE];
     int cache_object_size = 0;
 
@@ -351,20 +357,24 @@ void make_request(int fd, char *url, char *host,
 
         dbg_printf("Read \n");
         read_return = Rio_readnb(&rio, reply, MAXBUF);
-	//dbg_printf("Double check \n");
-        dbg_printf("Read return: %d\n", read_return);
-	dbg_printf("Object size: %d\n", cache_object_size);
 
-	cache_object_size += read_return;
+        dbg_printf("Read return: %d\n", read_return);
+	    dbg_printf("Object size: %d\n", cache_object_size);
+
+        //Add the bytes returned from the read to the total object size
+	    cache_object_size += read_return;
+
+        //As long as our object size is within the max, continue to add data
+        //to the cache_object so that we can add it to the cache later.
         if ( cache_object_size < MAX_OBJECT_SIZE )
         {
- 	    dbg_printf("Cache . . . \n");
+ 	        dbg_printf("Cache . . . \n");
             sprintf(cache_object, "%s%s", cache_object, reply);
-
         }
 
 	dbg_printf("Write . . . \n");
-        rio_writen(fd, reply, read_return);
+    //Write the data back to the client
+    rio_writen(fd, reply, read_return);
 
 	dbg_printf("Loop\n\n");
     } while ( read_return > 0);
