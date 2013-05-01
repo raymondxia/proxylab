@@ -306,7 +306,9 @@ void make_request(int fd, char *url, char *host,
     dbg_printf("\n   ENDING  REQUEST\n");
 
 
-    Rio_writen(net_fd, buf, strlen(buf));
+    int check = rio_writen(net_fd, buf, strlen(buf));
+    if (check != strlen(buf))
+      clienterror(fd, "Wrote wrong", "WRITE", "Writting Crash", "Error writting.");
 
 
     strcpy(reply, "");
@@ -330,7 +332,11 @@ void make_request(int fd, char *url, char *host,
         strcpy(reply, "");
 
         dbg_printf("Read \n");
-        read_return = Rio_readnb(&rio, reply, MAXBUF);
+        read_return = rio_readnb(&rio, reply, MAXBUF);
+
+	if (read_return < 0)
+	  clienterror(fd, "Reading reply", "READ", "Reading Crash", "Error reading.");
+
 	//dbg_printf("Double check \n");
         dbg_printf("Read return: %d\n", read_return);
 	dbg_printf("Object size: %d\n", cache_object_size);
