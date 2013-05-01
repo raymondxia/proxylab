@@ -28,7 +28,7 @@ static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers);
+void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers, int port);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
     // make a new string so as not to defile original url
     char url_arg[MAXLINE];
     strcpy(url_arg, url);
-    parse_url(url_arg, host, path, cgiargs);
+    int port = parse_url(url_arg, host, path, cgiargs);
     dbg_printf("POST-PARSE\n");
 
 
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
 
     dbg_printf("\nRequesting with URL : %s\n\n", url);
-    make_request(file_d, url, host, path, host_header, other_headers);
+    make_request(file_d, url, host, path, host_header, other_headers, port);
 
 
  }
@@ -151,8 +151,8 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 //review later
 void terminate (int param)
 {
-    printf ("SIGPIPE, quitting ...\n");
-    exit(1);
+    printf ("SIGPIPE . . . ignoring!\n");
+    //    exit(1);
 }
 
 
@@ -187,6 +187,11 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
        {
             sprintf(other_headers, "%s%s", other_headers, buf);
        }
+
+	if (buf[0] > 90 || buf[0] < 65)
+	{
+	  return;
+	}
    }
 
    dbg_printf("--------\nDone with headers\n");
@@ -214,6 +219,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
     sscanf(url, "http://%s", url);
 
+
     if ((path_ptr = strchr(url, '/')) == NULL)
     {
         strcpy(host, url);
@@ -230,20 +236,34 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
         path_ptr[0] = '\0';
         strcpy(host, url);
-	//strncpy(host, url, (int)(path_ptr - url));
     }
+
+
+    char *port_ptr;
+    int port;
+    if ((port_ptr = strchr(host, ':')) != NULL)
+    {
+        port_ptr++;
+	dbg_printf("Port Ptr: %s\n", port_ptr);
+	port = atoi(port_ptr);
+	dbg_printf("Got port number: %d\n", port);
+    }
+
+    else
+        port = 80;
 
     dbg_printf("LEAVING PARSE_URL()!\n");
     dbg_printf(" URL = %s\n", temp);
     dbg_printf(" HOST = %s\n", host);
     dbg_printf(" PATH = %s\n\n", path);
 
-    return 1;
+    return port;
 
 }
 
 
-void make_request(int fd, char *url, char *host, char *path, char *host_header, char *other_headers)
+void make_request(int fd, char *url, char *host,
+	char *path, char *host_header, char *other_headers, int port)
 {
 
     web_object* found = checkCache(cache, url);
@@ -258,7 +278,7 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
     char buf[MAXBUF], reply[MAXBUF];
     rio_t rio;
 
-    net_fd = Open_clientfd(host, 80);
+    net_fd = Open_clientfd(host, port);
 
     if (net_fd < -1)
     {
@@ -282,7 +302,7 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
     sprintf(buf, "%s%s\r\n", buf, other_headers);
 
     dbg_printf("\n   SENDING REQUEST\n");
-    //dbg_printf("%s\n", buf);
+    dbg_printf("%s\n", buf);
     dbg_printf("\n   ENDING  REQUEST\n");
 
 
@@ -307,15 +327,10 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
     dbg_printf("Entering reading loop\n");
     do
     {
-
         strcpy(reply, "");
 
-
-
         dbg_printf("Read \n");
-
         read_return = Rio_readnb(&rio, reply, MAXBUF);
-
 	//dbg_printf("Double check \n");
         dbg_printf("Read return: %d\n", read_return);
 	dbg_printf("Object size: %d\n", cache_object_size);
@@ -329,7 +344,7 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
         }
 
 	dbg_printf("Write . . . \n");
-        Rio_writen(fd, reply, read_return);
+        rio_writen(fd, reply, read_return);
 
 	dbg_printf("Loop\n\n");
     } while ( read_return > 0);
@@ -341,9 +356,6 @@ void make_request(int fd, char *url, char *host, char *path, char *host_header, 
         addToCache(cache, cache_object, url, cache_object_size);
         dbg_printf("Done!\n");
     }
-
-
-    dbg_printf("\n\n\n>>------------------------<<\n\n\n");
 
     return;
 }
