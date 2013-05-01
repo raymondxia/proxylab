@@ -28,6 +28,10 @@ timestamp indicating when it was last used */
 /* Defining Global variables */
 unsigned int timecounter = 0;
 
+//Create and initialize the rw lock
+pthread_rwlock_t lock;
+pthread_rwlock_init(&lock, 0);
+
 /* checkCache: 
 *   This function goes through the singly linked list
 *   object by object and checks if the path of that object
@@ -35,6 +39,7 @@ unsigned int timecounter = 0;
 */
 web_object* checkCache(cache_LL* cache, char* path) 
 {
+    pthread_rwlock_wrlock(&lock);
     dbg_printf("\nCACHE >> Checking Cache for %s\n", path);
 
     web_object* cursor = cache->head;
@@ -58,6 +63,7 @@ web_object* checkCache(cache_LL* cache, char* path)
 
     dbg_printf("CACHE >> Not found in cache.\n");
     //We return NULL if we did not find the object in the cache
+    pthread_rwlock_unlock(&lock);
     return NULL;
 }
 
@@ -69,6 +75,7 @@ web_object* checkCache(cache_LL* cache, char* path)
 */
 void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 {
+    pthread_rwlock_wrlock(&lock);   
     dbg_printf("\nCACHE >> Adding to cache: %s\n", path);
 
 
@@ -117,6 +124,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
     }
 
     dbg_printf("CACHE >> Done adding.\n");
+    pthread_rwlock_unlock(&lock);
 }
 
 /* evictAnObject:
@@ -128,6 +136,7 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 */
 void evictAnObject (cache_LL* cache)
 {
+    pthread_rwlock_wrlock(&lock);
     dbg_printf("CACHE >> Evicting from cache.\n");
 
     unsigned int leastRecentTime = cache->head->timestamp;
@@ -184,5 +193,6 @@ void evictAnObject (cache_LL* cache)
 
         cursor = cursor->next;
     }
+    pthread_rwlock_unlock(&lock);
 
 }

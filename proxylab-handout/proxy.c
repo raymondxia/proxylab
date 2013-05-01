@@ -39,7 +39,7 @@ typedef struct {
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
-void make_request(req_args *argstruct);
+void *make_request(void *argstruct);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void terminate(int param);
 
@@ -133,17 +133,31 @@ int main(int argc, char **argv)
 
     req_args *args = (req_args *)Calloc(1, sizeof(req_args));
 
+<<<<<<< HEAD
+=======
+    /*
+>>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
     args->url = Calloc(1, MAXLINE);
     args->host = Calloc(1, MAXLINE);
     args->path = Calloc(1, MAXLINE);
     args->host_header = Calloc(1, MAXLINE);
     args->other_headers = Calloc(1, MAXLINE);
+<<<<<<< HEAD
 
     strcpy(args->url, url);
     strcpy(args->host, host);
     strcpy(args->path, path);
     strcpy(args->host_header, host_header);
     strcpy(args->other_headers, other_headers);
+=======
+    */
+
+    args->url = url;
+    args->host = host;
+    args->path = path;
+    args->host_header = host_header;
+    args->other_headers = other_headers;
+>>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 
     args->port = port;
     args->fd = file_d;
@@ -298,6 +312,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
+<<<<<<< HEAD
 /* Make request creates a request using the information such as the port, 
  * file descriptor, url, host, path & necessary headers. These are stored 
  * in a structure called argstruct (in order to use Pcreate_thread for
@@ -320,13 +335,27 @@ void make_request(req_args *argstruct)
     char *path = argstruct->path;
     char *host_header = argstruct->host_header;
     char *other_headers = argstruct->other_headers;
+=======
+void *make_request(void *argstruct)
+{
+    Pthread_detach(Pthread_self());
+
+    req_args *r = (req_args *)(argstruct);
+
+    int fd = r->fd;
+    int port = r->port;
+    char *url = r->url;
+    char *host = r->host;
+    char *path = r->path;
+    char *host_header = r->host_header;
+    char *other_headers = r->other_headers;
+>>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 
 
     web_object* found = checkCache(cache, url);
     //If the object is found, write the data back to the client
     if(found != NULL) {
         Rio_writen(fd, found->data, found->size);
-        return;
     }
 
 
@@ -339,7 +368,11 @@ void make_request(req_args *argstruct)
     if (net_fd < -1)
     {
         clienterror(fd, host, "DNS!", "DNS error, this host isn't a host!", "Ah!");
+<<<<<<< HEAD
     return;
+=======
+	return NULL;
+>>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
     }
 
     /* The following code adds the necessary information to make buf a complete request */
@@ -365,7 +398,13 @@ void make_request(req_args *argstruct)
 
     int check = rio_writen(net_fd, buf, strlen(buf));
     if (check != strlen(buf))
+    {
       clienterror(fd, "Wrote wrong", "WRITE", "Writting Crash", "Error writting.");
+
+       free(argstruct);
+
+       return NULL;
+    }
 
 
     strcpy(reply, "");
@@ -429,6 +468,7 @@ void make_request(req_args *argstruct)
     }
 
 
+<<<<<<< HEAD
     free(url);
     free(host);
     free(path);
@@ -438,4 +478,9 @@ void make_request(req_args *argstruct)
     free(argstruct);
 
     return;
+=======
+    free(argstruct);
+
+    return NULL;
+>>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 }
