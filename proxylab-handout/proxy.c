@@ -61,6 +61,7 @@ int main(int argc, char **argv)
     cache = (cache_LL*) Calloc(1, sizeof(cache_LL));
     cache->head = NULL;
     cache->size = 0;
+    cache_init();
 
 
     signal(SIGPIPE, terminate);
@@ -87,8 +88,7 @@ int main(int argc, char **argv)
 
 
 /*
-* Serves a client's request.
-* file_d is the file descriptor
+* Serves a client's request
 */
  void serve(int file_d)
  {
@@ -133,31 +133,17 @@ int main(int argc, char **argv)
 
     req_args *args = (req_args *)Calloc(1, sizeof(req_args));
 
-<<<<<<< HEAD
-=======
-    /*
->>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
     args->url = Calloc(1, MAXLINE);
     args->host = Calloc(1, MAXLINE);
     args->path = Calloc(1, MAXLINE);
     args->host_header = Calloc(1, MAXLINE);
     args->other_headers = Calloc(1, MAXLINE);
-<<<<<<< HEAD
 
     strcpy(args->url, url);
     strcpy(args->host, host);
     strcpy(args->path, path);
     strcpy(args->host_header, host_header);
     strcpy(args->other_headers, other_headers);
-=======
-    */
-
-    args->url = url;
-    args->host = host;
-    args->path = path;
-    args->host_header = host_header;
-    args->other_headers = other_headers;
->>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 
     args->port = port;
     args->fd = file_d;
@@ -203,11 +189,7 @@ void terminate (int param)
 
 
 /*
-* Reads in and ignores headers of requests.
-* host_header and other_headers are merely buffers 
-* to store the information obtained from reading 
-* regarding the host headers and other necessary
-* headers respectively.
+* Reads in an ignores headers of requests
 */
 void read_headers(rio_t *rp, char *host_header, char *other_headers)
 {
@@ -227,7 +209,7 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
 
     if (!strncmp(buf, "Host: ", prefix))
             strcpy(host_header, buf + prefix);
-        /* We add other headers when required */
+
         if (strncmp(buf, "User-Agent: ", strlen("User-Agent: ")) &&
             strncmp(buf, "Accept: ", strlen("Accept: ")) &&
             strncmp(buf, "Accept-Encoding: ", strlen("Accept-Encoding: ")) &&
@@ -236,7 +218,7 @@ void read_headers(rio_t *rp, char *host_header, char *other_headers)
        {
             sprintf(other_headers, "%s%s", other_headers, buf);
        }
-    /* We added this check in order to ignore garbage headers */
+
     if (buf[0] > 90 || buf[0] < 65)
     {
       return;
@@ -290,7 +272,6 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 
     char *port_ptr;
     int port;
-    //checks if the user requests a certain port
     if ((port_ptr = strchr(host, ':')) != NULL)
     {
         port_ptr++;
@@ -300,7 +281,7 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
     }
 
     else
-        port = 80; //else uses the default port
+        port = 80;
 
     dbg_printf("LEAVING PARSE_URL()!\n");
     dbg_printf(" URL = %s\n", temp);
@@ -312,30 +293,6 @@ int parse_url(char *url, char *host, char *path, char *cgiargs)
 }
 
 
-<<<<<<< HEAD
-/* Make request creates a request using the information such as the port, 
- * file descriptor, url, host, path & necessary headers. These are stored 
- * in a structure called argstruct (in order to use Pcreate_thread for
- * each new request that needs to be made). If the object associated with the url 
- * exists in the cache, we return the stored data from the cache. 
- * If not, the complete request with the 
- * given information is created and stored in buf which is then read
- * MAXBUF bytes at a time. Information about the size & data from the web object
- * are kept track of and stored in cache_object_size & cache_object so that
- * the web object may be cached later.
- */
-void make_request(req_args *argstruct)
-{
-    Pthread_detach(pthred_self());
-    //Unpacking all the information from the argument struct
-    int fd = argstruct->fd;
-    int port = argstruct->port;
-    char *url = argstruct->url;
-    char *host = argstruct->host;
-    char *path = argstruct->path;
-    char *host_header = argstruct->host_header;
-    char *other_headers = argstruct->other_headers;
-=======
 void *make_request(void *argstruct)
 {
     Pthread_detach(Pthread_self());
@@ -349,11 +306,10 @@ void *make_request(void *argstruct)
     char *path = r->path;
     char *host_header = r->host_header;
     char *other_headers = r->other_headers;
->>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 
 
     web_object* found = checkCache(cache, url);
-    //If the object is found, write the data back to the client
+
     if(found != NULL) {
         Rio_writen(fd, found->data, found->size);
     }
@@ -368,14 +324,10 @@ void *make_request(void *argstruct)
     if (net_fd < -1)
     {
         clienterror(fd, host, "DNS!", "DNS error, this host isn't a host!", "Ah!");
-<<<<<<< HEAD
-    return;
-=======
-	return NULL;
->>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
+    return NULL;
     }
 
-    /* The following code adds the necessary information to make buf a complete request */
+
     sprintf(buf, "GET %s HTTP/1.0\r\n", path);
     printf("Send request buf: \n%s\n", buf);
 
@@ -383,13 +335,12 @@ void *make_request(void *argstruct)
         sprintf(buf, "%sHost: %s\r\n", buf, host);
     else
         sprintf(buf, "%sHost: %s\r\n", buf, host_header);
-    //Adds the default headers
     sprintf(buf, "%s%s", buf, user_agent);
     sprintf(buf, "%s%s", buf, accept_type);
     sprintf(buf, "%s%s", buf, accept_encoding);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sProxy-Connection: close\r\n", buf);
-    sprintf(buf, "%s%s\r\n", buf, other_headers); //Adds the other headers
+    sprintf(buf, "%s%s\r\n", buf, other_headers);
 
     dbg_printf("\n   SENDING REQUEST\n");
     dbg_printf("%s\n", buf);
@@ -400,6 +351,11 @@ void *make_request(void *argstruct)
     if (check != strlen(buf))
     {
       clienterror(fd, "Wrote wrong", "WRITE", "Writting Crash", "Error writting.");
+       free(url);
+       free(host);
+       free(path);
+       free(host_header);
+       free(other_headers);
 
        free(argstruct);
 
@@ -420,9 +376,6 @@ void *make_request(void *argstruct)
 
 
     char cache_object[MAX_OBJECT_SIZE];
-    //cache_object size finds the total size of the data 
-    //by summing the total number of bytes received from 
-    //every read.
     int cache_object_size = 0;
 
     dbg_printf("Entering reading loop\n");
@@ -437,29 +390,24 @@ void *make_request(void *argstruct)
       clienterror(fd, "Reading reply", "READ", "Reading Crash", "Error reading.");
 
     //dbg_printf("Double check \n");
-    dbg_printf("Read return: %d\n", read_return);
+        dbg_printf("Read return: %d\n", read_return);
     dbg_printf("Object size: %d\n", cache_object_size);
 
-    //Add the bytes returned from the read to the total object size
     cache_object_size += read_return;
-
-    //As long as our object size is within the max, continue to add data
-    //to the cache_object so that we can add it to the cache later.
-    if ( cache_object_size < MAX_OBJECT_SIZE )
-    {
+        if ( cache_object_size < MAX_OBJECT_SIZE )
+        {
         dbg_printf("Cache . . . \n");
-        sprintf(cache_object, "%s%s", cache_object, reply);
-    }
+            sprintf(cache_object, "%s%s", cache_object, reply);
+
+        }
 
     dbg_printf("Write . . . \n");
-    //Write the data back to the client
-    rio_writen(fd, reply, read_return);
+        rio_writen(fd, reply, read_return);
 
     dbg_printf("Loop\n\n");
     } while ( read_return > 0);
 
 
-    //If the object size is less than the maximum, add it to the cache
     if (cache_object_size < MAX_OBJECT_SIZE)
     {
         dbg_printf("\nAdding to cache . . . \n");
@@ -468,7 +416,6 @@ void *make_request(void *argstruct)
     }
 
 
-<<<<<<< HEAD
     free(url);
     free(host);
     free(path);
@@ -477,10 +424,5 @@ void *make_request(void *argstruct)
 
     free(argstruct);
 
-    return;
-=======
-    free(argstruct);
-
     return NULL;
->>>>>>> a4d40d5ee5e3060761ac9cbaa25eae49292b121a
 }
