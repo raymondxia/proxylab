@@ -36,6 +36,10 @@ typedef struct {
     int fd;
 } req_args;
 
+
+sem_t read_mutex, write_mutex;
+
+
 void serve(int file_d);
 void read_headers(rio_t *rp, char* host_header, char *other_headers);
 int parse_url(char *url, char *host, char *path, char *cgiargs);
@@ -147,6 +151,9 @@ int main(int argc, char **argv)
     args->other_headers = other_headers;
 
     args->port = port;
+
+    dbg_printf("FILE DESCRIPTOR FIRST %d\n", file_d);
+
     args->fd = file_d;
 
     pthread_t tid;
@@ -183,7 +190,7 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 //review later
 void terminate (int param)
 {
-    printf ("SIGPIPE . . . ignoring!\n");
+    dbg_printf ("SIGPIPE . . . ignoring!\n");
     //    exit(1);
 }
 
@@ -309,6 +316,8 @@ void *make_request(void *argstruct)
     char *other_headers = r->other_headers;
 
 
+    dbg_printf("FILE DESCRIPTOR SECOND %d\n", fd);
+
     web_object* found = checkCache(cache, url);
 
     if(found != NULL) {
@@ -397,8 +406,11 @@ void *make_request(void *argstruct)
 
         }
 
-	dbg_printf("Write . . . \n");
-        rio_writen(fd, reply, read_return);
+	dbg_printf("Write . . . ");
+        Rio_writen(r->fd, reply, read_return);
+	//dbg_printf("%d bytes.\n", x);
+
+        dbg_printf("FILE DESCRIPTOR THIRD %d\n", fd);
 
 	dbg_printf("Loop\n\n");
     } while ( read_return > 0);
