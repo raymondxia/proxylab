@@ -27,6 +27,7 @@ typedef struct cache_LL{
   unsigned int size;
 }cache_LL;
 
+void cache_init();
 web_object* checkCache(cache_LL* cache, char* path);
 void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize);
 void evictAnObject(cache_LL* cache);

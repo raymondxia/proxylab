@@ -30,7 +30,12 @@ unsigned int timecounter = 0;
 
 //Create and initialize the rw lock
 pthread_rwlock_t lock;
-pthread_rwlock_init(&lock, 0);
+
+void cache_init()
+{
+    pthread_rwlock_init(&lock, 0);
+}
+
 
 /* checkCache: 
 *   This function goes through the singly linked list
