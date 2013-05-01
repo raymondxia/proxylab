@@ -28,7 +28,11 @@ timestamp indicating when it was last used */
 /* Defining Global variables */
 unsigned int timecounter = 0;
 
-
+/* checkCache: 
+*   This function goes through the singly linked list
+*   object by object and checks if the path of that object
+*   is the same as the one we are searching for.
+*/
 web_object* checkCache(cache_LL* cache, char* path) 
 {
     dbg_printf("\nCACHE >> Checking Cache for %s\n", path);
@@ -57,6 +61,12 @@ web_object* checkCache(cache_LL* cache, char* path)
     return NULL;
 }
 
+
+/* addToCache: 
+*   This function creates a new object and adds the information
+*   regarding the object. This object is then inserted at the
+*   start of the singly linked list representing the cache.
+*/
 void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
 {
     dbg_printf("\nCACHE >> Adding to cache: %s\n", path);
@@ -109,6 +119,13 @@ void addToCache(cache_LL* cache, char* data, char* path, unsigned int addSize)
     dbg_printf("CACHE >> Done adding.\n");
 }
 
+/* evictAnObject:
+*   We use the LRU policy to evict objects. We first traverse
+*   through the list to find the minimum time at which an
+*   object was used. We then traverse through the list again
+*   to find the object matching that timestamp and remove it 
+*   from the linked list representing the cache.
+*/
 void evictAnObject (cache_LL* cache)
 {
     dbg_printf("CACHE >> Evicting from cache.\n");
@@ -164,7 +181,7 @@ void evictAnObject (cache_LL* cache)
 
             return;
         }
-        
+
         cursor = cursor->next;
     }
 
